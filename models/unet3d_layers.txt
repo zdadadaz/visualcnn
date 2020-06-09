@@ -12,3 +12,22 @@
 11 MaxPool3d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
 12 Conv3d(240, 480, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1), bias=False)
 13 Conv3d(480, 480, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1), bias=False)
+
+
+from pretrain model unet3d
+Model's state_dict:
+module.encoder1.enc1conv1.weight 	 torch.Size([30, 3, 3, 3, 3])
+module.encoder1.enc1conv2.weight 	 torch.Size([30, 30, 3, 3, 3])
+module.encoder2.enc2conv1.weight 	 torch.Size([60, 30, 3, 3, 3])
+module.encoder2.enc2conv2.weight 	 torch.Size([60, 60, 3, 3, 3])
+module.encoder3.enc3conv1.weight 	 torch.Size([120, 60, 3, 3, 3])
+module.encoder3.enc3conv2.weight 	 torch.Size([120, 120, 3, 3, 3])
+module.encoder4.enc4conv1.weight 	 torch.Size([240, 120, 3, 3, 3])
+module.encoder4.enc4conv2.weight 	 torch.Size([240, 240, 3, 3, 3])
+module.bottleneck.bottleneckconv1.weight 	 torch.Size([480, 240, 3, 3, 3])
+module.bottleneck.bottleneckconv2.weight 	 torch.Size([480, 480, 3, 3, 3])
+module.fc.0.weight 	 torch.Size([5880, 47040])
+module.fc.0.bias 	 torch.Size([5880])
+module.fc.2.weight 	 torch.Size([1, 5880])
+module.fc.2.bias 	 torch.Size([1])
+

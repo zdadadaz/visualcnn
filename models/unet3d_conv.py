@@ -115,31 +115,48 @@ class UNet3D_ef(nn.Module):
         super(UNet3D_ef, self).__init__()
         features = init_features
         
-        self.encoder1 = UNet3D._block(in_channels, features, name="enc1")
-        self.pool1 = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.encoder2 = UNet3D._block(features, features * 2, name="enc2")
-        self.pool2 = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.encoder3 = UNet3D._block(features * 2, features * 4, name="enc3")
-        self.pool3 = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.encoder4 = UNet3D._block(features * 4, features * 8, name="enc4")
-        self.pool4 = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.bottleneck = UNet3D._block(features * 8, features * 16, name="bottleneck")
-        
+        fin = [in_channels, features, features * 2, features * 4, features * 8]
+        fout = [features, features * 2, features * 4, features * 8,features * 16]
         self.features = nn.Sequential(
-            self.encoder1.enc1conv1,
-            self.encoder1.enc1conv2,
-            self.pool1,
-            self.encoder2.enc2conv1,
-            self.encoder2.enc2conv2,
-            self.pool2,
-            self.encoder3.enc3conv1,
-            self.encoder3.enc3conv2,
-            self.pool3,
-            self.encoder4.enc4conv1,
-            self.encoder4.enc4conv2,
-            self.pool4,
-            self.bottleneck.bottleneckconv1,
-            self.bottleneck.bottleneckconv2,
+            # encoder 1
+            nn.Conv3d(in_channels=fin[0],out_channels=fout[0],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[0]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.Conv3d(in_channels=fout[0],out_channels=fout[1],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[0]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.MaxPool3d(kernel_size=2, stride=2, return_indices=True),
+            #encoder 2
+            nn.Conv3d(in_channels=fin[1],out_channels=fout[1],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[1]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.Conv3d(in_channels=fout[1],out_channels=fout[1],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[1]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.MaxPool3d(kernel_size=2, stride=2, return_indices=True),
+            #encoder 3
+            nn.Conv3d(in_channels=fin[2],out_channels=fout[2],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[2]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.Conv3d(in_channels=fout[2],out_channels=fout[2],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[2]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.MaxPool3d(kernel_size=2, stride=2, return_indices=True),
+            #encoder 4
+            nn.Conv3d(in_channels=fin[3],out_channels=fout[3],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[3]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.Conv3d(in_channels=fout[3],out_channels=fout[3],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[3]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.MaxPool3d(kernel_size=2, stride=2, return_indices=True),
+            #encoder 5
+            nn.Conv3d(in_channels=fin[4],out_channels=fout[4],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[4]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+            nn.Conv3d(in_channels=fout[4],out_channels=fout[4],kernel_size=3,padding=1,stride=1,bias=False),
+            nn.InstanceNorm3d(num_features=fout[4]),
+            nn.LeakyReLU(negative_slope=0.01, inplace=True)
             )
         
         self.fc = nn.Sequential(nn.Linear(480*2*7*7, 60*2*7*7),
@@ -147,34 +164,47 @@ class UNet3D_ef(nn.Module):
                                  nn.Linear(60*2*7*7, 1)
                                 ) 
         # index of conv
-        self.conv_layer_indices = [0, 1, 3, 4, 6,7,9,10,12,13]
+        self.conv_layer_indices = [0, 3, 7, 10, 14, 17, 21, 24, 28, 31]
         # feature maps
         self.feature_maps = OrderedDict()
         # switch
         self.pool_locs = OrderedDict()
-        # self.ini_weights()
-        for idx, layer in enumerate(self.features):
-            print(idx,layer)
+        self.ini_weights()
+        # for idx, layer in enumerate(self.features):
+        #     if isinstance(layer, nn.Conv3d):
+        #         print(idx,layer)
         
     def forward(self, x):
-        enc1 = self.encoder1(x)
-        enc2 = self.encoder2(self.pool1(enc1))
-        enc3 = self.encoder3(self.pool2(enc2))
-        enc4 = self.encoder4(self.pool3(enc3))
-
-        bottleneck = self.bottleneck(self.pool4(enc4))
-        
-        Ef_out = self.fc(bottleneck.view(bottleneck.size(0),-1))
-        
-        return Ef_out
+        for idx, layer in enumerate(self.features):
+            if isinstance(layer, nn.MaxPool3d):
+                x, location = layer(x)
+                # print(location)
+                # self.pool_locs[idx] = location
+            else:
+                x = layer(x)
+        x = x.view(x.size(0),-1)
+        output = self.fc(x)
+        return output
     
     def ini_weights(self):
         checkpoint = torch.load("/home/zdadadaz/Desktop/course/medical/code/echodyn/output/video/echonet_ef/best.pt")
         # model.load_state_dict(checkpoint['state_dict'])
         # Print model's state_dict
-        print("Model's state_dict:")
-        for param_tensor in checkpoint['state_dict']:
-            print(param_tensor, "\t", checkpoint['state_dict'][param_tensor].size())
+        # print("Model's state_dict:")
+        count = 0
+        for idx, layer in enumerate(checkpoint['state_dict']):
+            # print(idx, layer, checkpoint['state_dict'][layer].size())
+            if idx<10:
+                self.features[self.conv_layer_indices[count]].weight.data = checkpoint['state_dict'][layer]
+                count += 1
+            elif idx == 10:
+                self.fc[0].weight.data = checkpoint['state_dict'][layer]
+            elif idx == 11:
+                self.fc[0].bias.data = checkpoint['state_dict'][layer]
+            elif idx == 12:
+                self.fc[2].weight.data = checkpoint['state_dict'][layer]
+            elif idx == 13:
+                self.fc[2].bias.data = checkpoint['state_dict'][layer]
         
-        
-UNet3D_ef()
+# model = UNet3D_ef(3, 1)
+# print(model)
